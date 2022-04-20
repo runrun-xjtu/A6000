@@ -1,0 +1,135 @@
+C51 COMPILER V8.18   DIGITRON_DRV                                                          07/20/2017 09:38:06 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE DIGITRON_DRV
+OBJECT MODULE PLACED IN digitron_drv.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE digitron_drv.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          
+   2          #include "digitron_drv.h"
+   3          
+   4          code uint8 Segment[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};
+   5          code uint8 Select[] = {0xff,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+   6          
+   7          /**********************************************
+   8          **********************************/
+   9          static void DigOutput(uint8 SelectByte, uint8 SegmentByte)
+  10          {
+  11   1          uint8 i;
+  12   1          
+  13   1              DIG_SHCP = 0;
+  14   1              DIG_STCP = 0;
+  15   1      
+  16   1              for(i=0; i<8; i++)
+  17   1              {
+  18   2                  if(SegmentByte&0x80)
+  19   2              {
+  20   3                      DIG_DATA = 1;
+  21   3              }
+  22   2                      else
+  23   2              {
+  24   3                          DIG_DATA = 0;
+  25   3              }
+  26   2                      _nop_();
+  27   2                      DIG_SHCP = 1;
+  28   2                      _nop_();
+  29   2                      DIG_SHCP = 0;
+  30   2                      _nop_();
+  31   2                      SegmentByte <<= 1;
+  32   2              }
+  33   1              for(i=0; i<8; i++)
+  34   1              {
+  35   2                  if(SelectByte&0x80)
+  36   2                      DIG_DATA = 1;
+  37   2                      else
+  38   2                          DIG_DATA = 0;
+  39   2                      _nop_();
+  40   2                      DIG_SHCP = 1;
+  41   2                      _nop_();
+  42   2                      DIG_SHCP = 0;
+  43   2                      _nop_();
+  44   2                      SelectByte <<= 1;
+  45   2              }
+  46   1              DIG_STCP = 1;
+  47   1              _nop_();
+  48   1              DIG_STCP = 0;
+  49   1              _nop_();
+  50   1      }
+  51          
+  52          /**********************************************
+  53          功能：
+  54              在某位显示自定义段码
+  55          输入参数：
+C51 COMPILER V8.18   DIGITRON_DRV                                                          07/20/2017 09:38:06 PAGE 2   
+
+  56              DigSelect: 数码管位选择（1——8，即最右到最左）
+  57              CustomSeg: 自定义段码值
+  58          输出参数：
+  59              无
+  60          返回值：
+  61          **********************************************/
+  62          void DigShowCustom(uint8 DigSelect, uint8 CustomSeg)
+  63          {
+  64   1          if(0<DigSelect<9)
+  65   1          {
+  66   2              DigOutput(Select[DigSelect],CustomSeg);
+  67   2          }
+  68   1      }
+  69          
+  70          /**********************************************
+  71          功能：
+  72              在某位显示数字
+  73          输入参数：
+  74              DigSelect: 数码管位选择（1——8，即最右到最左）
+  75              Number:    数字（0——9）
+  76              Dp:        小数点（1:显示；0:不显示）
+  77          输出参数：
+  78              无
+  79          返回值：
+  80          **********************************************/
+  81          void DigShowNumber(uint8 DigSelect, uint8 Number, bit Dp)
+  82          {
+  83   1          if((0<DigSelect<9)&&(Number<10))
+  84   1          {
+  85   2              if(Dp)
+  86   2              {
+  87   3                  DigOutput(Select[DigSelect],(Segment[Number]&~0x80));
+  88   3              }
+  89   2              else
+  90   2              {
+  91   3                  DigOutput(Select[DigSelect],(Segment[Number]|0x80));
+  92   3              }
+  93   2          }
+  94   1      }
+  95          
+  96          
+  97          /**********************************************
+  98          功能：
+  99              初始化数码管，使数码管全灭
+ 100          
+ 101          **********************************************/
+ 102          void DigInit(void)
+ 103          {
+ 104   1          DIG_DATA = 0;
+ 105   1              DIG_SHCP = 0;
+ 106   1              DIG_STCP = 0;
+ 107   1          DigOutput(0x00,0xff);
+ 108   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    161    ----
+   CONSTANT SIZE    =     19    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+C51 COMPILER V8.18   DIGITRON_DRV                                                          07/20/2017 09:38:06 PAGE 3   
+
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,1465 @@
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 1   
+
+
+C51 COMPILER V8.18, COMPILATION OF MODULE 1
+OBJECT MODULE PLACED IN 1.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE 1.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include <reg51.h>
+   2          #include <intrins.h>
+   3          #include "DS1302_drv.h"
+   4          #include "digitron_drv.h"
+   5          #define uchar unsigned char
+   6          #define uint  unsigned int
+   7          #define DOT   0x7f
+   8          #define LCD12864_DATA P0 
+   9          
+  10          sbit key1=P1^0;         // left key              
+  11          sbit key2=P1^1;     // up key
+  12          sbit key3=P1^2;         // down key
+  13          sbit key4=P1^3;         // right key
+  14          sbit led5=P1^4;     //   ´Ë²¿·ÖÓÃledµÆ´úÌæÄ£¿éº¯Êý
+  15          sbit led6=P1^5;         //       ´Ë²¿·ÖÓÃledµÆ´úÌæÄ£¿éº¯Êý
+  16          sbit led7=P1^6;         //       ´Ë²¿·ÖÓÃledµÆ´úÌæÄ£¿éº¯Êý
+  17          sbit led8=P1^7;         //   ´Ë²¿·ÖÓÃledµÆ´úÌæÄ£¿éº¯Êý
+  18          sbit DQ = P1^4;
+  19          sbit LCD12864_RS = P2^7;        //Êý¾Ý/ÃüÁîÑ¡Ôñ
+  20          sbit LCD12864_RW = P2^6;        //¶Á/Ð´Ñ¡Ôñ
+  21          sbit LCD12864_EN = P2^5;        //Ê¹ÄÜÐÅºÅ
+  22          sbit LCD12864_PSB = P2^4;       //²¢/´®½Ó¿ÚÑ¡Ôñ, H²¢,L´®
+  23          sbit LCD12864_RST = P2^2;
+  24          sbit beep =  P3^5;
+  25          bit n=0;
+  26          bit m=0;
+  27          uint8 gSetTime[]={0x13,0x01,0x25,0x11,0x14,0x00};       //³õÊ¼Ê±¼äÊý×é13Äê01ÔÂ02ÈÕ11µã14·Ö00Ãë
+  28          idata unsigned int a[7]={0,0,0,0,0,0,0};
+  29          unsigned int option=0; 
+  30          code unsigned char number[]=
+  31          {
+  32             0xc0,0xf9,0xa4,0xb0,0x99,
+  33             0x92,0x82,0xf8,0x80,0x90,0xff
+  34             };
+  35          
+  36          unsigned char DigBuf[4];    //¶¨ÒåÊýÂë¹ÜÏÔÊ¾»º³åÇø
+  37                  uchar m1,n1,i=1;
+  38          struct
+  39          {
+  40              uint8 Seconds;  // Ãë
+  41              uint8 Minutes;  // ·Ö
+  42              uint8 Hour;     // Ê±
+  43              uint8 Date;     // ÈÕ
+  44              uint8 Month;    // ÔÂ
+  45              uint8 Year;     // Äê
+  46          }gsTimeCalendar;
+  47          // Êý×Ö¶ÎÂë£¬Segment[0]~Segment[9]·Ö±ð¶ÔÓ¦Êý×Ö0~9µÄ¶ÎÂë
+  48          code unsigned char Select1[] = {0xff,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};       // Î»Ñ¡£¬Select[0]ÎªÈ
+             -«Ñ¡£¬Select[1]~Select[8]·Ö±ð¶ÔÓ¦µÚ1Î»£¨×îÓÒ²à£©~µÚ8Î»£¨×î×ó²à£©
+  49          
+  50          uchar TH0system[]={0xfc,0xfc,0xfc,0xfc,0xfd,0xfd,0xfd,0xfd,0xfd,0xfd,0xfd,0xfe};
+  51          uchar TL0system[]={0x43,0x78,0xab,0xdb,0x08,0x33,0x5b,0x81,0xa5,0xc7,0xe7,0x05};
+  52          numtable[]={0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0x88,0x83,0xc6,0xa1,0x86,0x8e};
+  53          code unsigned char xjtu[]={
+  54          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 2   
+
+  55          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  56          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  57          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  58          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  59          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  60          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  61          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  62          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  63          0X00,0X00,0X00,0X00,0X00,0X00,0X01,0X80,0X0E,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+  64          0X00,0X00,0X00,0X00,0X00,0X00,0X18,0X00,0X00,0XC0,0X00,0X00,0X00,0X00,0X00,0X00,
+  65          0X00,0X00,0X00,0X00,0X00,0X00,0X40,0X00,0X02,0X18,0X00,0X00,0X00,0X00,0X00,0X00,
+  66          0X00,0X00,0X00,0X00,0X00,0X01,0X00,0X00,0X05,0X04,0X00,0X00,0X00,0X00,0X00,0X00,
+  67          0X00,0X00,0X00,0X00,0X00,0X04,0X0C,0X00,0X08,0X81,0X00,0X00,0X00,0X00,0X00,0X00,
+  68          0X00,0X00,0X00,0X00,0X00,0X08,0X20,0X80,0X17,0XC0,0XC0,0X00,0X00,0X00,0X00,0X00,
+  69          0X00,0X00,0X00,0X00,0X00,0X10,0X10,0X00,0X00,0X40,0X20,0X00,0X00,0X00,0X00,0X00,
+  70          0X00,0X00,0X00,0X00,0X00,0X40,0X00,0X23,0X10,0X80,0X10,0X00,0X00,0X00,0X00,0X00,
+  71          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X63,0X38,0X00,0X08,0X00,0X00,0X00,0X00,0X00,
+  72          0X00,0X00,0X00,0X00,0X00,0X80,0X06,0X7F,0XF9,0X80,0X04,0X00,0X00,0X00,0X00,0X00,
+  73          0X00,0X00,0X00,0X00,0X01,0X60,0X07,0X80,0X0F,0X80,0X02,0X00,0X00,0X00,0X00,0X00,
+  74          0X00,0X00,0X00,0X00,0X02,0X00,0X66,0X00,0X01,0X90,0X12,0X00,0X00,0X00,0X00,0X00,
+  75          0X00,0X00,0X00,0X00,0X00,0X40,0X78,0X00,0X00,0XF8,0XA9,0X00,0X00,0X00,0X00,0X00,
+  76          0X00,0X00,0X00,0X00,0X04,0X08,0X30,0X01,0X40,0X30,0X28,0X00,0X00,0X00,0X00,0X00,
+  77          0X00,0X00,0X00,0X00,0X00,0X1B,0X60,0X25,0X60,0X12,0X20,0X80,0X00,0X00,0X00,0X00,
+  78          0X00,0X00,0X00,0X00,0X08,0X03,0XC0,0X1D,0X70,0X0F,0X20,0X00,0X00,0X00,0X00,0X00,
+  79          0X00,0X00,0X00,0X00,0X00,0X01,0X80,0X79,0X58,0X0C,0X00,0X40,0X00,0X00,0X00,0X00,
+  80          0X00,0X00,0X00,0X00,0X10,0X01,0X00,0X7D,0X48,0X04,0X00,0X40,0X00,0X00,0X00,0X00,
+  81          0X00,0X00,0X00,0X00,0X10,0X0F,0X00,0X7D,0X44,0X07,0X80,0X00,0X00,0X00,0X00,0X00,
+  82          0X00,0X00,0X00,0X00,0X10,0X07,0X00,0X00,0X44,0X03,0X80,0X00,0X00,0X00,0X00,0X00,
+  83          0X00,0X00,0X00,0X00,0X10,0X02,0X03,0XBF,0XF7,0XC2,0X00,0X00,0X00,0X00,0X00,0X00,
+  84          0X00,0X00,0X00,0X00,0X00,0X02,0X03,0XFF,0XF7,0X02,0X00,0X20,0X00,0X00,0X00,0X00,
+  85          0X00,0X00,0X00,0X00,0X00,0X0E,0X00,0XBF,0XF0,0X03,0XC0,0X20,0X00,0X00,0X00,0X00,
+  86          0X00,0X00,0X00,0X00,0X00,0X02,0X00,0X1F,0XC0,0X03,0X80,0X20,0X00,0X00,0X00,0X00,
+  87          0X00,0X00,0X00,0X00,0X00,0X02,0X00,0X0F,0XC0,0X02,0X00,0X20,0X00,0X00,0X00,0X00,
+  88          0X00,0X00,0X00,0X00,0X10,0X07,0X01,0X0F,0XC0,0X03,0X00,0X00,0X00,0X00,0X00,0X00,
+  89          0X00,0X00,0X00,0X00,0X10,0X0F,0X00,0X1F,0XE0,0X07,0X80,0X00,0X00,0X00,0X00,0X00,
+  90          0X00,0X00,0X00,0X00,0X10,0X01,0X02,0X3F,0XF0,0X06,0X00,0X40,0X00,0X00,0X00,0X00,
+  91          0X00,0X00,0X00,0X00,0X00,0X01,0X80,0X41,0X48,0X0C,0X00,0X40,0X00,0X00,0X00,0X00,
+  92          0X00,0X00,0X00,0X00,0X08,0X03,0XC4,0XE8,0X0E,0X0E,0X00,0X00,0X00,0X00,0X00,0X00,
+  93          0X00,0X00,0X00,0X00,0X08,0X03,0X5F,0XE8,0X4E,0X1E,0X00,0X80,0X00,0X00,0X00,0X00,
+  94          0X00,0X00,0X00,0X00,0X04,0X00,0X22,0X16,0XB0,0X30,0X00,0X80,0X00,0X00,0X00,0X00,
+  95          0X00,0X00,0X00,0X00,0X04,0X00,0X7C,0X00,0X00,0XF0,0X01,0X00,0X00,0X00,0X00,0X00,
+  96          0X00,0X00,0X00,0X00,0X02,0X00,0X6C,0X00,0X01,0XB0,0X00,0X00,0X00,0X00,0X00,0X00,
+  97          0X00,0X00,0X00,0X00,0X01,0X00,0X07,0X80,0X07,0X00,0X02,0X00,0X00,0X00,0X00,0X00,
+  98          0X00,0X00,0X00,0X00,0X01,0X00,0X0E,0XFC,0XFB,0X80,0X04,0X00,0X00,0X00,0X00,0X00,
+  99          0X00,0X00,0X00,0X00,0X00,0X80,0X00,0X67,0X31,0X00,0X08,0X00,0X00,0X00,0X00,0X00,
+ 100          0X00,0X00,0X00,0X00,0X00,0X40,0X00,0X67,0X30,0X00,0X10,0X00,0X00,0X00,0X00,0X00,
+ 101          0X00,0X00,0X00,0X00,0X00,0X20,0X00,0X00,0X00,0X00,0X20,0X00,0X00,0X00,0X00,0X00,
+ 102          0X00,0X00,0X00,0X00,0X00,0X18,0X00,0X00,0X00,0X88,0X40,0X00,0X00,0X00,0X00,0X00,
+ 103          0X00,0X00,0X00,0X00,0X00,0X04,0X00,0X00,0X00,0X01,0X80,0X00,0X00,0X00,0X00,0X00,
+ 104          0X00,0X00,0X00,0X00,0X00,0X03,0X00,0X80,0X00,0X02,0X00,0X00,0X00,0X00,0X00,0X00,
+ 105          0X00,0X00,0X00,0X00,0X00,0X00,0XC0,0X00,0X20,0X08,0X00,0X00,0X00,0X00,0X00,0X00,
+ 106          0X00,0X00,0X00,0X00,0X00,0X00,0X10,0X00,0X00,0X60,0X00,0X00,0X00,0X00,0X00,0X00,
+ 107          0X00,0X00,0X00,0X00,0X00,0X00,0X03,0X00,0X03,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 108          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X1F,0XE0,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 109          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 110          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 111          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 112          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 113          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 114          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 115          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 116          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 3   
+
+ 117          0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,
+ 118          };
+ 119          void delay(unsigned int t)        
+ 120          { 
+ 121   1          unsigned int i,j;
+ 122   1          for(i=t;i>0;i--)
+ 123   1              for(j=110;j>0;j--);
+ 124   1      }
+ 125          
+ 126          ///////////////////////////////////////////////               time
+ 127          void outnumber(unsigned char wei, unsigned char duan)
+ 128          {
+ 129   1          unsigned int i;
+ 130   1          for(i=0;i<8;i++)
+ 131   1              {
+ 132   2                  shcp=0;
+ 133   2                      if(duan & 0x80)
+ 134   2                      {
+ 135   3                         Data=1;
+ 136   3                      }
+ 137   2                      else
+ 138   2                      {
+ 139   3                         Data=0;
+ 140   3                      }
+ 141   2                      shcp=1;
+ 142   2                      duan <<=1;
+ 143   2              }
+ 144   1              for(i=0;i<8;i++)
+ 145   1              {
+ 146   2                  shcp=0;
+ 147   2                      if(wei & 0x80)
+ 148   2                      {
+ 149   3                         Data=1;
+ 150   3                      }
+ 151   2                      else
+ 152   2                      {
+ 153   3                         Data=0;
+ 154   3                      }
+ 155   2                      shcp=1;
+ 156   2                      wei <<=1;
+ 157   2              }
+ 158   1              stcp=0;
+ 159   1              stcp=1;
+ 160   1      }
+ 161          void shanshuo(unsigned int x)
+ 162          {
+ 163   1              unsigned int ti=0;
+ 164   1          while(ti<200)
+ 165   1         {outnumber(0x80,number[a[1]]);
+ 166   2              outnumber(0x40,number[a[2]]);
+ 167   2              outnumber(0x40,0x7f);
+ 168   2              outnumber(0x20,number[a[3]]);
+ 169   2              outnumber(0x10,number[a[4]]);
+ 170   2              outnumber(0x10,0x7f);
+ 171   2              outnumber(0x08,number[a[5]]);
+ 172   2              outnumber(0x04,number[a[6]]);
+ 173   2              ti++;
+ 174   2              }
+ 175   1              switch(x)
+ 176   1              {
+ 177   2                 case 0: while(ti<400)
+ 178   2         {outnumber(0x80,number[a[1]]);
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 4   
+
+ 179   3              outnumber(0x40,number[a[2]]);
+ 180   3              outnumber(0x40,0x7f);
+ 181   3              outnumber(0x20,number[a[3]]);
+ 182   3              outnumber(0x10,number[a[4]]);
+ 183   3              outnumber(0x10,0x7f);
+ 184   3              outnumber(0x08,number[a[5]]);
+ 185   3              outnumber(0x04,number[a[6]]);
+ 186   3              ti++;
+ 187   3              }
+ 188   2                 case 1: while(ti<400)
+ 189   2         {outnumber(0x80,number[10]);
+ 190   3              outnumber(0x40,number[a[2]]);
+ 191   3              outnumber(0x40,0x7f);
+ 192   3              outnumber(0x20,number[a[3]]);
+ 193   3              outnumber(0x10,number[a[4]]);
+ 194   3              outnumber(0x10,0x7f);
+ 195   3              outnumber(0x08,number[a[5]]);
+ 196   3              outnumber(0x04,number[a[6]]);
+ 197   3              ti++;
+ 198   3              }
+ 199   2              break;
+ 200   2                      case 2: while(ti<400)
+ 201   2         {outnumber(0x80,number[a[1]]);
+ 202   3              outnumber(0x40,number[10]);
+ 203   3              outnumber(0x40,0x7f);
+ 204   3              outnumber(0x20,number[a[3]]);
+ 205   3              outnumber(0x10,number[a[4]]);
+ 206   3              outnumber(0x10,0x7f);
+ 207   3              outnumber(0x08,number[a[5]]);
+ 208   3              outnumber(0x04,number[a[6]]);
+ 209   3              ti++;
+ 210   3              }
+ 211   2              break;
+ 212   2                 case 3: while(ti<400)
+ 213   2         {outnumber(0x80,number[a[1]]);
+ 214   3              outnumber(0x40,number[a[2]]);
+ 215   3              outnumber(0x40,0x7f);
+ 216   3              outnumber(0x20,number[10]);
+ 217   3              outnumber(0x10,number[a[4]]);
+ 218   3              outnumber(0x10,0x7f);
+ 219   3              outnumber(0x08,number[a[5]]);
+ 220   3              outnumber(0x04,number[a[6]]);
+ 221   3              ti++;
+ 222   3              }
+ 223   2              break;
+ 224   2              case 4: while(ti<400)
+ 225   2         {outnumber(0x80,number[a[1]]);
+ 226   3              outnumber(0x40,number[a[2]]);
+ 227   3              outnumber(0x40,0x7f);
+ 228   3              outnumber(0x20,number[a[3]]);
+ 229   3              outnumber(0x10,number[10]);
+ 230   3              outnumber(0x10,0x7f);
+ 231   3              outnumber(0x08,number[a[5]]);
+ 232   3              outnumber(0x04,number[a[6]]);
+ 233   3              ti++;
+ 234   3              }
+ 235   2              break;
+ 236   2              case 5: while(ti<400)
+ 237   2         {outnumber(0x80,number[a[1]]);
+ 238   3              outnumber(0x40,number[a[2]]);
+ 239   3              outnumber(0x40,0x7f);
+ 240   3              outnumber(0x20,number[a[3]]);
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 5   
+
+ 241   3              outnumber(0x10,number[a[4]]);
+ 242   3              outnumber(0x10,0x7f);
+ 243   3              outnumber(0x08,number[10]);
+ 244   3              outnumber(0x04,number[a[6]]);
+ 245   3              ti++;
+ 246   3              }
+ 247   2              break;
+ 248   2              case 6: while(ti<400)
+ 249   2         {outnumber(0x80,number[a[1]]);
+ 250   3              outnumber(0x40,number[a[2]]);
+ 251   3              outnumber(0x40,0x7f);
+ 252   3              outnumber(0x20,number[a[3]]);
+ 253   3              outnumber(0x10,number[a[4]]);
+ 254   3              outnumber(0x08,number[a[5]]);
+ 255   3              outnumber(0x04,number[10]);
+ 256   3              ti++;
+ 257   3              }
+ 258   2              break;
+ 259   2              }
+ 260   1      }
+ 261          
+ 262          void settime()
+ 263          {
+ 264   1          while(1)     //set time 
+ 265   1         {
+ 266   2               shanshuo(option);
+ 267   2      
+ 268   2         if (key4==0)
+ 269   2         {     delay(20);
+ 270   3                 if(key4==0)
+ 271   3                     {
+ 272   4                            nextwei:
+ 273   4                                option=option+1;
+ 274   4                                if( option==7) option=1;
+ 275   4                                          while (1)
+ 276   4                                                      {    shanshuo(option);
+ 277   5                        
+ 278   5                                                 if (key2==0)  //set time 2
+ 279   5                                {  delay(20);
+ 280   6                                   if(key2==0)
+ 281   6                                                                 {
+ 282   7                                                                     a[option]=a[option]+1;
+ 283   7                                                                         switch(option)
+ 284   7                                                                         {
+ 285   8                                                                            case 1:  if(a[option]>=3)  a[option]=0; break;
+ 286   8                                                                                case 2:  if(a[option]>=10)  a[option]=0; break;
+ 287   8                                                                                case 3:  if(a[option]>=6)  a[option]=0; break;
+ 288   8                                                                                case 4:  if(a[option]>=10)  a[option]=0; break;
+ 289   8                                                                                case 5:  if(a[option]>=6)  a[option]=0; break;
+ 290   8                                                                                case 6:  if(a[option]>=10)  a[option]=0; break;
+ 291   8                                                                         }
+ 292   7                                                                 }
+ 293   6                                     }       
+ 294   5                                      while(1)
+ 295   5                                    {   if (key2==1)
+ 296   6                                          break;}
+ 297   5      
+ 298   5                                                
+ 299   5                                                              
+ 300   5                                                                                       if (key3==0)
+ 301   5                                   {  delay(20);
+ 302   6                                      if(key3==0)
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 6   
+
+ 303   6                                               goto setover1;
+ 304   6                                                  }     //check go out
+ 305   5                                 if (key4==0)
+ 306   5                                 {  delay(20);
+ 307   6                                      if(key4==0)
+ 308   6                                             goto nextwei;
+ 309   6                                                }
+ 310   5                                  }
+ 311   4                         }
+ 312   3                   }
+ 313   2                   while(1)
+ 314   2                   {    if (key4==1)
+ 315   3                   break;
+ 316   3                   }
+ 317   2                       //set over
+ 318   2                   
+ 319   2                      
+ 320   2          }
+ 321   1              setover1:
+ 322   1              delay(20);
+ 323   1      }
+ 324          
+ 325          ///////////////////////////////////////////////////////////////////////////////
+ 326          void numchange(unsigned int x,unsigned int y,unsigned int z)
+ 327          {
+ 328   1              unsigned char te1,te2; 
+ 329   1              switch(x)
+ 330   1              {
+ 331   2                 case 1: te1=0x10;break;
+ 332   2                 case 2: te1=0x20;break;
+ 333   2                 case 3: te1=0x30;break;
+ 334   2                 case 4: te1=0x40;break;
+ 335   2                 case 5: te1=0x50;break;
+ 336   2                 case 6: te1=0x60;break;
+ 337   2                 case 7: te1=0x70;break;
+ 338   2                 case 8: te1=0x80;break;
+ 339   2                 case 9: te1=0x90;break;
+ 340   2                 case 0: te1=0x00;break;
+ 341   2              }
+ 342   1              switch(y)
+ 343   1              {
+ 344   2                 case 1: te2=0x01;break;
+ 345   2                 case 2: te2=0x02;break;
+ 346   2                 case 3: te2=0x03;break;
+ 347   2                 case 4: te2=0x04;break;
+ 348   2                 case 5: te2=0x05;break;
+ 349   2                 case 6: te2=0x06;break;
+ 350   2                 case 7: te2=0x07;break;
+ 351   2                 case 8: te2=0x08;break;
+ 352   2                 case 9: te2=0x09;break;
+ 353   2                 case 0: te2=0x00;break;
+ 354   2              }
+ 355   1              gSetTime[z]=te1 | te2;
+ 356   1      }
+ 357          
+ 358          
+ 359          /**********************************************
+ 360          ¹¦ÄÜ£º
+ 361              ÉèÖÃÊ±¼äºÍÈÕÆÚ
+ 362          **********************************************/
+ 363          void SetTimeCalendar(void)
+ 364          {
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 7   
+
+ 365   1              WriteDS1302(ADR_W_WP,WP_OFF);           //¹Ø±ÕÐ´±£»¤¹¦ÄÜ£¬¼´ÔÊÐí¶Ô¸÷¼Ä´æÆ÷½øÐÐÐ´²Ù×÷
+ 366   1          numchange(a[1],a[2],3);
+ 367   1              numchange(a[3],a[4],4);
+ 368   1              numchange(a[5],a[6],5);
+ 369   1              WriteDS1302(ADR_W_YEAR,gSetTime[0]);    //Äê
+ 370   1              WriteDS1302(ADR_W_MONTH,gSetTime[1]);   //ÔÂ
+ 371   1              WriteDS1302(ADR_W_DATE,gSetTime[2]);    //ÈÕ
+ 372   1              WriteDS1302(ADR_W_HOUR,gSetTime[3]);    //Ê±
+ 373   1              WriteDS1302(ADR_W_MINUTES,gSetTime[4]); //·Ö
+ 374   1              WriteDS1302(ADR_W_SECONDS,gSetTime[5]); //Ãë
+ 375   1          
+ 376   1              WriteDS1302(ADR_W_WP,WP_ON);            //Æô¶¯Ð´±£»¤¹¦ÄÜ£¬¼´½ûÖ¹¶Ô¸÷¼Ä´æÆ÷½øÐÐÐ´²Ù×÷
+ 377   1      }
+ 378          
+ 379          /**********************************************
+ 380          ¹¦ÄÜ£º
+ 381              ¶ÁÈ¡Ê±¼ä
+ 382          ÊäÈë²ÎÊý£º
+ 383              ÎÞ
+ 384          Êä³ö²ÎÊý£º
+ 385              ÎÞ
+ 386          ·µ»ØÖµ£º
+ 387          **********************************************/
+ 388          void ReadTime(void)
+ 389          {
+ 390   1          gsTimeCalendar.Seconds = ReadDS1302(ADR_R_SECONDS);         //¶ÁÈ¡Ãë
+ 391   1          gsTimeCalendar.Minutes = ReadDS1302(ADR_R_MINUTES);         //¶ÁÈ¡·Ö
+ 392   1          gsTimeCalendar.Hour    = ReadDS1302(ADR_R_HOUR);                    //¶ÁÈ¡Ê±
+ 393   1      }
+ 394          
+ 395          /**********************************************
+ 396              Ö÷º¯Êý£¬ÏÔÊ¾Ê±¼äºÍÈÕÆÚ
+ 397          **********************************************/
+ 398          bit BusyCheck(void)
+ 399          {
+ 400   1          bit BusyBit;
+ 401   1          
+ 402   1          LCD12864_DATA = 0xFF;
+ 403   1          LCD12864_RS = 0;
+ 404   1          LCD12864_RW = 1;
+ 405   1          LCD12864_EN = 1;
+ 406   1          _nop_();
+ 407   1          BusyBit = (bit)(LCD12864_DATA>>7);
+ 408   1          LCD12864_EN = 0;
+ 409   1          return BusyBit;
+ 410   1      }
+ 411          
+ 412          /**********************************************
+ 413              Ð´ÃüÁîµ½LCD12864
+ 414          **********************************************/
+ 415          void CommandWrite12864(unsigned char CmdByte)
+ 416          {
+ 417   1          while(BusyCheck());             //µÈ´ýÃ¦
+ 418   1          LCD12864_RS = 0;
+ 419   1          LCD12864_RW = 0;
+ 420   1          LCD12864_EN = 1;
+ 421   1          LCD12864_DATA = CmdByte;
+ 422   1          _nop_();
+ 423   1          LCD12864_EN = 0;
+ 424   1      }
+ 425          
+ 426          /**********************************************
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 8   
+
+ 427              Ð´Êý¾Ýµ½LCD12864
+ 428          **********************************************/
+ 429          void DataWrite12864(unsigned char DataByte)
+ 430          {
+ 431   1          while(BusyCheck());             //µÈ´ýÃ¦
+ 432   1          LCD12864_RS = 1;
+ 433   1          LCD12864_RW = 0;
+ 434   1          LCD12864_EN = 1;
+ 435   1          LCD12864_DATA = DataByte;
+ 436   1          _nop_();
+ 437   1          LCD12864_EN = 0;
+ 438   1      }
+ 439          
+ 440          /**********************************************
+ 441          ¹¦ÄÜ£º
+ 442              ³õÊ¼»¯LCD12864
+ 443          **********************************************/
+ 444          void Reset12864(void)
+ 445          {
+ 446   1              LCD12864_PSB = 1;               //Ñ¡Ôñ²¢¿Ú´«Êä
+ 447   1              CommandWrite12864(0x30);        //Ñ¡Ôñ»ù±¾Ö¸Áî¼¯
+ 448   1              CommandWrite12864(0x0c);        //¿ªÏÔÊ¾(ÎÞÓÎ±ê¡¢²»·´°×)
+ 449   1              CommandWrite12864(0x01);        //Çå³ýÏÔÊ¾£¬²¢ÇÒÉè¶¨µØÖ·Ö¸ÕëÎª00H
+ 450   1              CommandWrite12864(0x06);        //Ö¸¶¨ÔÚ×ÊÁÏµÄ¶ÁÈ¡¼°Ð´ÈëÊ±£¬Éè¶¨ÓÎ±êµÄÒÆ¶¯·½Ïò¼°Ö¸¶¨ÏÔÊ¾µÄÒÆÎ»
+ 451   1      }
+ 452          
+ 453          /**********************************************
+ 454          ¹¦ÄÜ£º
+ 455              ÇåÆÁ
+ 456          **********************************************/
+ 457          void ScreenClear12864(void)
+ 458          {
+ 459   1          CommandWrite12864(0x01);
+ 460   1      }
+ 461          
+ 462          /**********************************************
+ 463          ¹¦ÄÜ£º
+ 464              ÔÚÖ¸¶¨×ø±êÏÔÊ¾×Ö·û´®
+ 465          ÊäÈë²ÎÊý£º
+ 466              x: ºá×ø±ê(0¡ª¡ª15)
+ 467              y: ×Ý×ø±ê(0¡ª¡ª1)
+ 468              String: ×Ö·û´®
+ 469          **********************************************/
+ 470          void StringDisplay12864(unsigned char x, unsigned char y, unsigned char *String)
+ 471          {
+ 472   1          if((x<8)&&(y<4))
+ 473   1          {
+ 474   2              //Ö¸¶¨Êý¾ÝµØÖ·
+ 475   2              switch(y)
+ 476   2              {
+ 477   3                  case 0:
+ 478   3                      CommandWrite12864(0x80|0x00|x);
+ 479   3                      break;
+ 480   3                  case 1:
+ 481   3                      CommandWrite12864(0x80|0x10|x);
+ 482   3                      break;
+ 483   3                  case 2:
+ 484   3                      CommandWrite12864(0x80|0x08|x);
+ 485   3                      break;
+ 486   3                  case 3:
+ 487   3                      CommandWrite12864(0x80|0x18|x);
+ 488   3                      break;
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 9   
+
+ 489   3              }
+ 490   2              //ÏÔÊ¾×Ö·û´®
+ 491   2              while(*String != '\0')
+ 492   2              {
+ 493   3                  DataWrite12864(*String);
+ 494   3                  delay(50);
+ 495   3                  String++;
+ 496   3              }
+ 497   2          }
+ 498   1      }
+ 499          void PictureDisplay12864(unsigned char code *Picture)
+ 500          {
+ 501   1          unsigned char i,j,k;
+ 502   1          
+ 503   1              CommandWrite12864(0x34);
+ 504   1              CommandWrite12864(0x34);
+ 505   1          for(i=0; i<2; i++)                      //GDRAM·ÖÉÏÏÂÁ½Ò³
+ 506   1          {
+ 507   2              for(j=0; j<32; j++)
+ 508   2              {
+ 509   3                  /* Ð´×Ý×ø±êyºÍºá×ø±êx */
+ 510   3                  CommandWrite12864(0x80+j);      //Ð´GDRAMµÄ×ø±êy£¬¼´µÚyÐÐ
+ 511   3                  if(i==0)
+ 512   3                  {
+ 513   4                      CommandWrite12864(0x80);    //Ð´GDRAMµÄ×ø±êx£¨ÉÏÒ³£©
+ 514   4                  }
+ 515   3                  else
+ 516   3                  {
+ 517   4                      CommandWrite12864(0x88);    //Ð´GDRAMµÄ×ø±êx£¨ÏÂÒ³£©
+ 518   4                  }
+ 519   3                  /* ½«16¸ö×Ö½ÚÐ´ÈëGDRAM */
+ 520   3                  for(k=0; k<16; k++)
+ 521   3                  {
+ 522   4                      DataWrite12864(*Picture++);
+ 523   4                  }
+ 524   3              }
+ 525   2          }
+ 526   1          /* ´ò¿ª»æÍ¼ÏÔÊ¾£¬²¢Ñ¡Ôñ»ù±¾Ö¸Áî¼¯ */
+ 527   1          CommandWrite12864(0x36);
+ 528   1          CommandWrite12864(0x30);
+ 529   1      }
+ 530          void delay50us(uint t)
+ 531          {
+ 532   1              char i;
+ 533   1              for(;t>0;t--)
+ 534   1                      for(i=19;i>0;i--);
+ 535   1      }
+ 536          
+ 537          void delay50ms(uint t)
+ 538          {
+ 539   1              uint i;
+ 540   1              for(;t>0;t--)
+ 541   1                      for(i=6245;i>0;i--);
+ 542   1      }
+ 543          
+ 544          void changex(unsigned char x1, unsigned char y1,unsigned char x)
+ 545          {  unsigned char str[1];
+ 546   1         switch(x)
+ 547   1         {
+ 548   2                case 0: str[0]='0';break;
+ 549   2                 case 1: str[0]='1';break;
+ 550   2                  case 2: str[0]='2';break;
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 10  
+
+ 551   2                       case 3: str[0]='3';break;
+ 552   2                        case 4: str[0]='4';break;
+ 553   2                         case 5: str[0]='5';break;
+ 554   2                          case 6: str[0]='6';break;
+ 555   2                               case 7: str[0]='7';break;
+ 556   2                                case 8: str[0]='8';break;
+ 557   2                                 case 9: str[0]='9';break;       
+ 558   2         }
+ 559   1      StringDisplay12864(x1,y1,str);
+ 560   1      }
+ 561          //////////////////////////////////////////////////////////////////////
+ 562          void jisuanqi()
+ 563          {
+ 564   1       uchar i=0,keyl=0x00,keyh=0x00,key=0x00,a=0,b=0,c,g=0,s=0,f;
+ 565   1       int output=0;
+ 566   1       n=0; m=0;
+ 567   1       f=0;
+ 568   1       c=99;
+ 569   1        Reset12864();                           //Òº¾§12864³õÊ¼»¯
+ 570   1          delay(20); 
+ 571   1               ScreenClear12864();
+ 572   1              delay(1000);
+ 573   1              StringDisplay12864(7,0,"¼Æ");
+ 574   1              StringDisplay12864(7,1,"Ëã");
+ 575   1              StringDisplay12864(7,2,"Æ÷");
+ 576   1              StringDisplay12864(6,3,"³ÌÐò");
+ 577   1       while(1)
+ 578   1       {
+ 579   2        P1=0xf0;
+ 580   2        keyl=P1;
+ 581   2        keyl=keyl&0xf0;
+ 582   2        if(keyl!=0xf0)
+ 583   2        {
+ 584   3         P1=0x0f;
+ 585   3         keyh=P1;
+ 586   3         keyh=keyh&0x0f;
+ 587   3         key=keyl+keyh;
+ 588   3        }
+ 589   2        switch (key)
+ 590   2        {
+ 591   3                              case 0xee:      i=7;            break;
+ 592   3                              case 0xde:      i=8;            break;
+ 593   3                              case 0xbe:      i=9;            break;
+ 594   3                              case 0x7e:      i=10;           break;
+ 595   3                              case 0xed:      i=4;            break;
+ 596   3                              case 0xdd:      i=5;            break;
+ 597   3                              case 0xbd:      i=6;            break;
+ 598   3                              case 0x7d:      i=11;           break;  
+ 599   3                              case 0xeb:      i=1;            break;
+ 600   3                              case 0xdb:      i=2;            break;
+ 601   3                              case 0xbb:      i=3;            break;
+ 602   3                              case 0x7b:      i=12;           break;  
+ 603   3                              case 0xe7:      i=0;            break;
+ 604   3                              case 0xd7:      i=13;           break;
+ 605   3                              case 0xb7:      i=14;           break;
+ 606   3                              case 0x77:      i=15;           break;
+ 607   3        }
+ 608   2        if(i>=0&&i<=9)
+ 609   2        {
+ 610   3         if(c==99)
+ 611   3         {
+ 612   4          a=i;
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 11  
+
+ 613   4              changex(0,0,a);
+ 614   4         }
+ 615   3         if(c!=99)
+ 616   3         {
+ 617   4          b=i;
+ 618   4              changex(0,2,b);
+ 619   4         }
+ 620   3        }
+ 621   2        if(i>9&&i!=13&&i!=14)
+ 622   2        {
+ 623   3         c=i;
+ 624   3         switch(i)
+ 625   3         {  case 15:
+ 626   4                  StringDisplay12864(0,1,"+ "); break;
+ 627   4                case 10:
+ 628   4                  StringDisplay12864(0,1,"/ "); break;
+ 629   4                case 11:
+ 630   4                  StringDisplay12864(0,1,"* ");  break;
+ 631   4                case 12:
+ 632   4                  StringDisplay12864(0,1,"- ");  break;
+ 633   4        }
+ 634   3        }
+ 635   2        if(n==0)
+ 636   2        {
+ 637   3         if(i==14)
+ 638   3         {
+ 639   4          if(c==10)
+ 640   4              {
+ 641   5               m=1;
+ 642   5               output=a*10/b;
+ 643   5              }
+ 644   4          if(c==11)output=a*b;
+ 645   4          if(c==12)
+ 646   4              {
+ 647   5               if(a>=b)
+ 648   5               {
+ 649   6               output=a-b;
+ 650   6               }
+ 651   5               else if(a<b)
+ 652   5               {
+ 653   6                output=b-a;
+ 654   6                f=1;
+ 655   6               }
+ 656   5              }
+ 657   4          if(c==15)output=a+b;
+ 658   4          n=1;
+ 659   4         }
+ 660   3        }
+ 661   2        if(i==14)
+ 662   2        {
+ 663   3         if(m==1)
+ 664   3         {
+ 665   4               g=output%10;
+ 666   4                       s=output/10;
+ 667   4                       StringDisplay12864(0,3,"= ");
+ 668   4               changex(2,3,s); 
+ 669   4                       StringDisplay12864(3,3,"."); 
+ 670   4                       changex(4,3,g); 
+ 671   4      
+ 672   4         }
+ 673   3         else if(f==1)
+ 674   3         {
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 12  
+
+ 675   4          if(output/10==0)
+ 676   4                      {       
+ 677   5                       StringDisplay12864(0,3,"= ");
+ 678   5                       StringDisplay12864(2,3,"-");
+ 679   5                       changex(3,3,output); 
+ 680   5                      }
+ 681   4                      else if(output/100==0)
+ 682   4                      {
+ 683   5                       g=output%10;
+ 684   5                       s=output/10;
+ 685   5                       StringDisplay12864(0,3,"= ");
+ 686   5                       StringDisplay12864(2,3,"-"); 
+ 687   5                       changex(3,3,s);
+ 688   5                       changex(4,3,g);
+ 689   5                      }
+ 690   4         }      
+ 691   3         else if(output/10==0)
+ 692   3                      {       
+ 693   4                       StringDisplay12864(0,3,"= ");
+ 694   4                       changex(2,3,output); 
+ 695   4                      }
+ 696   3                      else if(output/100==0)
+ 697   3                      {
+ 698   4                       g=output%10;
+ 699   4                       s=output/10;
+ 700   4                       StringDisplay12864(0,3,"= ");
+ 701   4                       changex(2,3,s);
+ 702   4                       changex(3,3,g); 
+ 703   4                      }
+ 704   3                                      delay(5000);
+ 705   3                 ScreenClear12864();
+ 706   3                  delay(1000);
+ 707   3                      break;
+ 708   3        }
+ 709   2        if(i==13)
+ 710   2        {
+ 711   3         output==0;
+*** WARNING C275 IN LINE 711 OF 1.C: expression with possibly no effect
+ 712   3         n=0;
+ 713   3         m=0;
+ 714   3         f=0;
+ 715   3         c=99;
+ 716   3        }     
+ 717   2      }
+ 718   1      }
+ 719          
+ 720          void StringDisplay(unsigned char x, unsigned char y, unsigned char *String)
+ 721          {
+ 722   1          if((x<8)&&(y<4))
+ 723   1          {
+ 724   2              //Ö¸¶¨Êý¾ÝµØÖ·
+ 725   2              switch(y)
+ 726   2              {
+ 727   3                  case 0:
+ 728   3                      CommandWrite12864(0x80|0x00|x);
+ 729   3                      break;
+ 730   3                  case 1:
+ 731   3                      CommandWrite12864(0x80|0x10|x);
+ 732   3                      break;
+ 733   3                  case 2:
+ 734   3                      CommandWrite12864(0x80|0x08|x);
+ 735   3                      break;
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 13  
+
+ 736   3                  case 3:
+ 737   3                      CommandWrite12864(0x80|0x18|x);
+ 738   3                      break;
+ 739   3              }
+ 740   2              //ÏÔÊ¾×Ö·û´®
+ 741   2              while(*String != '\0')
+ 742   2              {
+ 743   3                  DataWrite12864(*String);
+ 744   3                  delay(5);
+ 745   3                  String++;
+ 746   3              }
+ 747   2          }
+ 748   1      }
+ 749          void begin()
+ 750          {       
+ 751   1          unsigned int countnum;
+ 752   1          Reset12864();                           //Òº¾§12864³õÊ¼»¯
+ 753   1          delay(20); 
+ 754   1              for(countnum=0;countnum<2;countnum++)
+ 755   1              {                             //ÑÓÊ±,±£Ö¤ÏÔÊ¾¸üÎÈ¶¨
+ 756   2              ScreenClear12864();
+ 757   2              delay(1000);
+ 758   2              PictureDisplay12864(xjtu);         //ÏÔÊ¾LogoÍ¼°¸
+ 759   2          delay(1000);
+ 760   2          ScreenClear12864();
+ 761   2              delay(1000);
+ 762   2              StringDisplay12864(0,0,"Î÷°²½»Í¨´óÑ§");
+ 763   2          StringDisplay12864(0,1,"Ð¡Ñ§ÆÚ¼ÆËã»úÏîÄ¿");
+ 764   2          StringDisplay12864(0,2,"³É¹ûÕ¹Ê¾");
+ 765   2          StringDisplay12864(0,3,"................");
+ 766   2              delay(1000);
+ 767   2              ScreenClear12864();
+ 768   2              StringDisplay12864(0,0,"µÚÊ®°Ë×é");
+ 769   2          StringDisplay12864(0,1,"×é³¤ÕÅµÂÈó");
+ 770   2          StringDisplay12864(0,2,"×éÔ±½¯Ðñ¶«º«ìÏº½");
+ 771   2          StringDisplay12864(0,3,"ÁÎÒÝ·É  Ðì·é");
+ 772   2          delay(2000);
+ 773   2              ScreenClear12864();
+ 774   2              delay(1000);
+ 775   2              }
+ 776   1              while(1)
+ 777   1              {
+ 778   2              StringDisplay12864(1,1,"Çë°´ÓÒ·½Ïò¼ü");
+ 779   2          StringDisplay12864(2,2,"½øÈë³ÌÐò    ");
+ 780   2              ScreenClear12864();
+ 781   2              if(key4==0)
+ 782   2                 {    
+ 783   3               delay(20);
+ 784   3                       if(key4==0)
+ 785   3                       {
+ 786   4                        break;
+ 787   4                       }                 
+ 788   3                 }
+ 789   2              }
+ 790   1        
+ 791   1      }
+ 792          
+ 793          void choosefunction(unsigned int x)
+ 794          {
+ 795   1         if(x==0)
+ 796   1         {
+ 797   2         StringDisplay(2,0,"¹¦ÄÜÑ¡Ôñ");
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 14  
+
+ 798   2         StringDisplay(1,1,"ÎÂ¶È¼Æ");
+ 799   2         StringDisplay(1,2,"ÊµÊ±Ê±¼ä");
+ 800   2         StringDisplay(1,3,"¼ÆËãÆ÷    ");
+ 801   2         }
+ 802   1         else if(x==1)
+ 803   1         {
+ 804   2         StringDisplay(2,0,"¹¦ÄÜÑ¡Ôñ");
+ 805   2         StringDisplay(0,1,"--ÎÂ¶È¼Æ    ");
+ 806   2         StringDisplay(0,2,"  ÊµÊ±Ê±¼ä      ");
+ 807   2         StringDisplay(0,3,"  ¼ÆËãÆ÷    ");
+ 808   2         }
+ 809   1         else if (x==2)
+ 810   1         {
+ 811   2       //  ScreenClear12864();
+ 812   2         StringDisplay(2,0,"¹¦ÄÜÑ¡Ôñ");
+ 813   2         StringDisplay(0,1,"  ÎÂ¶È¼Æ    ");
+ 814   2         StringDisplay(0,2,"--ÊµÊ±Ê±¼ä      ");
+ 815   2         StringDisplay(0,3,"  ¼ÆËãÆ÷    ");
+ 816   2         }
+ 817   1         else if(x==3)
+ 818   1         {
+ 819   2       //  ScreenClear12864();
+ 820   2         StringDisplay(2,0,"¹¦ÄÜÑ¡Ôñ");
+ 821   2         StringDisplay(0,1,"  ÎÂ¶È¼Æ    ");
+ 822   2         StringDisplay(0,2,"  ÊµÊ±Ê±¼ä      ");
+ 823   2         StringDisplay(0,3,"--¼ÆËãÆ÷    ");
+ 824   2         }
+ 825   1         else if(x==4)
+ 826   1         {
+ 827   2         StringDisplay(2,0,"¹¦ÄÜÑ¡Ôñ");
+ 828   2         StringDisplay(0,1,"--ÅÜ±í      ");
+ 829   2         StringDisplay(0,2,"  µç×ÓÇÙ        ");
+ 830   2            StringDisplay(0,3,"          ");
+ 831   2         }
+ 832   1         else if(x==5)
+ 833   1         {
+ 834   2         StringDisplay(2,0,"¹¦ÄÜÑ¡Ôñ");
+ 835   2         StringDisplay(0,1,"  ÅÜ±í      ");
+ 836   2         StringDisplay(0,2,"--µç×ÓÇÙ        ");
+ 837   2               StringDisplay(0,3,"          ");
+ 838   2         }
+ 839   1      }
+ 840          
+ 841          
+ 842          ///time function
+ 843          
+ 844          void shijian(void)
+ 845          {
+ 846   1                unsigned int mm=0;
+ 847   1                 
+ 848   1                          ReadTime();             //¶ÁÈ¡Ê±¼ä
+ 849   1      
+ 850   1              StringDisplay(2,1,"ÊµÊ±Ê±¼ä");
+ 851   1              StringDisplay(2,2,"£º");
+ 852   1              StringDisplay(5,2,"£º");
+ 853   1              changex(0,2,gsTimeCalendar.Hour>>4);
+ 854   1              changex(1,2,gsTimeCalendar.Hour&0x0f);
+ 855   1              changex(3,2,gsTimeCalendar.Minutes>>4);
+ 856   1              changex(4,2,gsTimeCalendar.Minutes&0x0f);
+ 857   1              changex(6,2,gsTimeCalendar.Seconds>>4);
+ 858   1              changex(7,2,gsTimeCalendar.Seconds&0x0f);
+ 859   1              StringDisplay(0,3,"        ");
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 15  
+
+ 860   1              StringDisplay(0,0,"        ");
+ 861   1      }
+ 862          
+ 863          /*--------------------------------------------------------------------------------------------------------
+             --*/
+ 864          /* ÎÂ¶ÈÄ£¿éDS18B20Ïà¹Øº¯Êý */
+ 865          /**********************************************
+ 866              ÑÓÊ±º¯Êý
+ 867          **********************************************/
+ 868          void DelayXus(unsigned char n)
+ 869          {
+ 870   1          while(n--);
+ 871   1      }
+ 872          unsigned char DS18B20Init(void)
+ 873          {
+ 874   1          unsigned char Prence;
+ 875   1          DQ = 0;
+ 876   1          DelayXus(180);//540us = 180*3us (»ù×¼ÊÇ3us)
+ 877   1          DQ = 1;
+ 878   1          DelayXus(20);//60us = 20*3us
+ 879   1          if (!DQ)//ËµÃ÷´æÔÚ
+ 880   1          {
+ 881   2              Prence = 1;   
+ 882   2          }
+ 883   1          else//ËµÃ÷²»´æÔÚ
+ 884   1          {
+ 885   2              Prence = 0;
+ 886   2          }
+ 887   1          DelayXus(160);//480 = 160*3us
+ 888   1          return Prence;
+ 889   1      }
+ 890          void DS18B20WriteOneByte(unsigned char dat)
+ 891          {
+ 892   1          unsigned char i;
+ 893   1          for (i=0;i<8;i++)/*Ð´8¸öÎ»*/
+ 894   1          {
+ 895   2              if (dat & 0x01)//ÅÐ¶Ï×î¸ßÊÇÐ´0 »¹ÊÇÐ´1 ,ÏÈÐ´µÍ×Ö½Ú
+ 896   2              {
+ 897   3                   /*À­µÍµçÆ½*/
+ 898   3                   DQ = 0;
+ 899   3                   /*±ØÐëÔÚ15usÖ®ÄÚÊÍ·Å×ÜÏß£¬²»¹ýÀ­µÍµçÆ½µÄÊ±¼äÓÖ±ØÐë´óÓÚ1us£¬ËùÒÔÎÒÃÇµÃÑÓÊ±1usÒÔÉÏ£¬¾ÍÑÓÊ±¸ö3us
+             -°É*/
+ 900   3                   DelayXus(1);//3 = 1*3us »ù×¼ÊÇ3us
+ 901   3                   /*ÊÍ·Å×ÜÏß*/
+ 902   3                   DQ = 1;
+ 903   3                   /*ÊÍ·ÅºóÖÁÉÙµÃµÈ45us£¬ÎÒÃÇ¾ÍÈÃËüµÈ¸ö60us*/
+ 904   3                   DelayXus(20);//60 = 20*3us
+ 905   3              }
+ 906   2              else
+ 907   2              {
+ 908   3                   /*À­µÍµçÆ½*/
+ 909   3                   DQ = 0;
+ 910   3                   /*¸øDS18B20Ê±¼ä·´Ó¦£¬ÐèÒª60us<T<120us£¬ÎÒÃÇÈ¡¸öÖÐ¼äÖµ£¬84us*/
+ 911   3                   DelayXus(28);//84 = 28*3us 
+ 912   3                   /*ÊÍ·Å×ÜÏß*/
+ 913   3                   DQ = 1;
+ 914   3                   /*µÈ´ý´óÓÚ1us*/
+ 915   3                   DelayXus(1);
+ 916   3              }
+ 917   2              dat >>= 1;//×Ö½ÚÊý¾ÝÍùÓÒÒÆ1Î»
+ 918   2          }
+ 919   1      }
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 16  
+
+ 920          /**********************************************
+ 921          ¹¦ÄÜ£º
+ 922              ´ÓDS18B20¶ÁÈ¡Ò»¸ö×Ö½Ú
+ 923          **********************************************/
+ 924          unsigned char DS18B20ReadOneByte(void)
+ 925          {
+ 926   1          unsigned char i;
+ 927   1          unsigned char TempDat = 0;
+ 928   1          for (i=0;i<8;i++)/*Ð´8¸öÎ»*/
+ 929   1          {
+ 930   2              TempDat >>= 1;
+ 931   2              DQ  = 0;
+ 932   2              DelayXus(1);
+ 933   2              DQ = 1;
+ 934   2              _nop_();      
+ 935   2              if (DQ)
+ 936   2              {
+ 937   3                  TempDat |= 0X80;
+ 938   3              }
+ 939   2              else
+ 940   2              {
+ 941   3              }
+ 942   2           
+ 943   2              DelayXus(25);
+ 944   2          }
+ 945   1          return TempDat;
+ 946   1      }
+ 947          /**********************************************
+ 948          ¹¦ÄÜ£º
+ 949              ¿ªÊ¼ÎÂ¶È×ª»»
+ 950          
+ 951          **********************************************/
+ 952          void DS18B20TConvertStart(void)
+ 953          {
+ 954   1          DS18B20Init();              //DS18B20³õÊ¼»¯
+ 955   1          delay(1);                   //ÑÓÊ±
+ 956   1          
+ 957   1          DS18B20WriteOneByte(0xCC);     //·¢ËÍÌø¹ýROMÖ¸Áî
+ 958   1          DS18B20WriteOneByte(0x44);     //·¢ËÍÆô¶¯ÎÂ¶È×ª»»Ö¸Áî
+ 959   1      }
+ 960          
+ 961          /**********************************************
+ 962          ¹¦ÄÜ£º
+ 963              »ñÈ¡ÎÂ¶ÈÖµ
+ 964          
+ 965          **********************************************/
+ 966          unsigned int DS18B20TGet(void)
+ 967          {
+ 968   1          unsigned int Temperature;
+ 969   1          
+ 970   1          DS18B20Init();              //DS18B20³õÊ¼»¯
+ 971   1          delay(1);                   //ÑÓÊ±
+ 972   1          
+ 973   1          DS18B20WriteOneByte(0xCC);     //·¢ËÍÌø¹ýROMÖ¸Áî
+ 974   1          DS18B20WriteOneByte(0xBE);     //·¢ËÍ¶ÁÈ¡±ãÇ©Ö¸Áî
+ 975   1          
+ 976   1          Temperature = DS18B20ReadOneByte();    //¶ÁÈ¡±ãÇ©µÄµÍ×Ö½Ú£¨8Î»£©
+ 977   1          Temperature |= DS18B20ReadOneByte()<<8;//¶ÁÈ¡±ãÇ©µÄ¸ß×Ö½Ú£¨8Î»£©
+ 978   1          
+ 979   1          return(Temperature);        //·µ»Ø¶ÁÈ¡µÄ±ãÇ©Öµ£¨16Î»£©
+ 980   1      }
+ 981          
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 17  
+
+ 982          /*--------------------------------------------------------------------------------------------------------
+             --*/
+ 983          /* ÊýÂë¹ÜÏÔÊ¾Ïà¹Øº¯Êý */
+ 984          
+ 985          void wendu()
+ 986          {
+ 987   1          unsigned int i=0;   //¶¨ÒåÑ­»·µÄ¼ÆÊýÖµ²¢¸³³õÊ¼Öµ
+ 988   1              double x1,x2;
+ 989   1          float TGet;         //¶¨Òå´ÓDS18B20¶ÁÈ¡µÄÊý
+ 990   1          signed int TShow;   //¶¨Òå×ª»»ºóÐèÒªÏÔÊ¾µÄÊý
+ 991   1              ScreenClear12864();
+ 992   1              delay(1000);
+ 993   1                      StringDisplay12864(2,0,"ÊµÊ±ÎÂ¶È");
+ 994   1                      changex(5,1,DigBuf[3]);
+ 995   1              StringDisplay12864(4,1,". ");
+ 996   1                  changex(3,1,DigBuf[2]);
+ 997   1                  changex(2,1,DigBuf[1]);
+ 998   1                              StringDisplay12864(2,2,"±¨¾¯ÎÂ¶È");
+ 999   1                      changex(5,3,a[3]);
+1000   1              StringDisplay12864(4,3,". ");
+1001   1                  changex(3,3,a[2]);
+1002   1                  changex(2,3,a[1]);
+1003   1                      x1=DigBuf[1]*10+DigBuf[2]+DigBuf[3]*0.1;
+1004   1                      x2=a[1]*10+a[2]+a[3]*0.1;
+1005   1                      if(x1>x2)
+1006   1                      {
+1007   2                      Buzz=1;
+1008   2                      }
+1009   1                      else
+1010   1                      { Buzz=0;   }
+1011   1              while(i<2000)
+1012   1              {
+1013   2              /* ²½Öè1£ºÈôÂú×ãÅÐ¶ÏÓï¾ä£¬ÔòÆô¶¯ÎÂ¶È×ª»» */
+1014   2              if(i==0)
+1015   2              {
+1016   3                  DS18B20TConvertStart();     //Æô¶¯ÎÂ¶È×ª»»
+1017   3              }
+1018   2              /* ²½Öè2£ºÈôÂú×ãÅÐ¶ÏÓï¾ä£¬¶ÁÈ¡ÎÂ¶ÈÖµ²¢×ª»»´æ´¢ÖÁÏÔÊ¾»º´æ */
+1019   2              if(i==100)
+1020   2              {
+1021   3                  TGet = DS18B20TGet()*0.0625;//µÃµ½ÕæÊµÊ®½øÖÆÎÂ¶ÈÖµ£¬ÒòÎªDS18B20
+1022   3                                                          //¿ÉÒÔ¾«È·µ½0.0625¶È£¬ËùÒÔ¶Á»ØÊý¾ÝµÄ×îµÍÎ»´ú±íµÄÊÇ0.0625¶È¡£
+1023   3                  TShow = TGet*10+0.5;        //·Å´óÊ®±¶£¬ÕâÑù×öµÄÄ¿µÄ½«Ð¡ÊýµãºóµÚÒ»Î»Ò²×ª»»Îª¿ÉÏÔÊ¾Êý×Ö£¬Í¬Ê±½ø
+             -ÐÐÒ»¸öËÄÉáÎåÈë²Ù×÷¡£
+1024   3      
+1025   3                  if(TShow<0)                 //ÅÐ¶ÏÎÂ¶ÈÖµÊÇ·ñÎª¸ºÊý
+1026   3                  {
+1027   4                      DigBuf[0] = 0xbf;
+1028   4                      TShow = 0-TShow;
+1029   4                  }
+1030   3                  else
+1031   3                  {
+1032   4                      DigBuf[0] = TShow/1000; //±£´æÎÂ¶È°ÙÎ»Öµ
+1033   4                  }
+1034   3                  TShow = TShow%1000;
+1035   3                  DigBuf[1] = TShow/100;      //±£´æÎÂ¶ÈÊ®Î»Öµ
+1036   3                  TShow = TShow%100;
+1037   3                  DigBuf[2] = TShow/10;       //±£´æÎÂ¶È¸öÎ»Öµ
+1038   3                  DigBuf[3] = TShow%10;       //±£´æÐ¡ÊýµãºóÒ»Î»Öµ
+1039   3              }
+1040   2              /* ²½Öè3£º¶Ôi½øÐÐ¼Ó1»ò¹éÁã */
+1041   2              if(++i>3000)                    //½«iµÄÖµ¼Ó1²¢ÇÒÅÐ¶ÏiÊÇ·ñ´óÓÚ3000
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 18  
+
+1042   2              {
+1043   3                  i = 0;                      //Èô³¬³öÁË3000£¬Ôò¹éÁã
+1044   3              }
+1045   2              /* ²½Öè4£º½øÐÐÊýÂë¹ÜµÄ¶¯Ì¬ÏÔÊ¾ */
+1046   2               
+1047   2              if(DigBuf[0]==0xbf)             //ÅÐ¶ÏDigBuf[0]µÄÖµÊÇ·ñÎª0xbf£¬¼´ÅÐ¶ÏÎÂ¶ÈÊÇ·ñÎª¸ºÊý
+1048   2              {
+1049   3                  DigShowCustom(4,0xbf);      //ÈôÊÇ¸ºÊý£¬µÚ4Î»ÏÔÊ¾¸ººÅ
+1050   3              }
+1051   2              else if(DigBuf[0]>0)            //ÈôDigBuf[0]²»Îª0xbf£¬ÔÙÅÐ¶ÏDigBuf[0]ÊÇ·ñ´óÓÚ0
+1052   2              {
+1053   3                  DigShowNumber(4,DigBuf[0],0);//ÈôDigBuf[0]´óÓÚ0£¬µÚ4Î»ÏÔÊ¾¸ÃÊýÖµ
+1054   3              }
+1055   2              else                            //·ñÔò
+1056   2              {
+1057   3                  DigShowCustom(4,0xff);      //µÚ4Î»ÊýÂë¹ÜÈ«Ãð
+1058   3              }
+1059   2          }
+1060   1      }
+1061          
+1062          void setwendu()
+1063          {
+1064   1          a[1]=0;a[2]=0;a[3]=0;a[4]=10;a[5]=10;a[6]=10;
+1065   1              option=0;
+1066   1          while(1)     //set time 
+1067   1         {
+1068   2               shanshuo(option);
+1069   2         if (key4==0)
+1070   2         {     delay(20);
+1071   3                 if(key4==0)
+1072   3                     {
+1073   4                            nextwei:
+1074   4                                option=option+1;
+1075   4                                if( option==4) option=1;
+1076   4                                          while (1)
+1077   4                                                      {    shanshuo(option);
+1078   5                        
+1079   5                                                 if (key2==0)  //set time 2
+1080   5                                {  delay(20);
+1081   6                                   if(key2==0)
+1082   6                                                                 {
+1083   7                                                                     a[option]=a[option]+1;
+1084   7                                                                         switch(option)
+1085   7                                                                         {
+1086   8                                                                            case 1:  if(a[option]>=10)  a[option]=0; break;
+1087   8                                                                                case 2:  if(a[option]>=10)  a[option]=0; break;
+1088   8                                                                                case 3:  if(a[option]>=10)  a[option]=0; break;
+1089   8                                                                         }
+1090   7                                                                 }
+1091   6                                     }       
+1092   5                                      while(1)
+1093   5                                    {   if (key2==1)
+1094   6                                          break;}
+1095   5      
+1096   5                                                
+1097   5                                                              
+1098   5                                                                                       if (key3==0)
+1099   5                                   {  delay(20);
+1100   6                                      if(key3==0)
+1101   6                                               goto setover1;
+1102   6                                                  }     //check go out
+1103   5                                 if (key4==0)
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 19  
+
+1104   5                                 {  delay(20);
+1105   6                                      if(key4==0)
+1106   6                                             goto nextwei;
+1107   6                                                }
+1108   5                                  }
+1109   4                         }
+1110   3                   }
+1111   2                   while(1)
+1112   2                   {    if (key4==1)
+1113   3                   break;
+1114   3                   }
+1115   2                       //set over
+1116   2                   
+1117   2                      
+1118   2          }
+1119   1              setover1:
+1120   1              delay(20);
+1121   1      
+1122   1      }
+1123          
+1124          void paobiao()
+1125          {
+1126   1       uchar i,a,b,c;
+1127   1        unsigned long int j;
+1128   1       bit k,m,n;
+1129   1       m=1;
+1130   1       n=0;
+1131   1       k=1;
+1132   1       i=0;
+1133   1       a=0;
+1134   1       b=0;
+1135   1       c=0;
+1136   1       while(1)
+1137   1       {
+1138   2        n=0;
+1139   2        j=25; 
+1140   2        while(j--)
+1141   2        {
+1142   3        outnumber(0x80,number[a]);
+1143   3        outnumber(0x40,number[b]);
+1144   3        outnumber(0x20,number[c]);
+1145   3        }
+1146   2        if(!key2)
+1147   2        {
+1148   3         k=1;
+1149   3        }
+1150   2        if(!key3)
+1151   2        {
+1152   3         k=0;
+1153   3        }
+1154   2        if(!key4)n=1;
+1155   2        if(k==1)
+1156   2        {
+1157   3         if(c==9){b++;c=-1;}
+1158   3         if(b==10&&c==-1)
+1159   3         {a++;b=0;c=-1;}
+1160   3         if(a==10&&b==10&&c==-1)
+1161   3         {a=0;b=0;c=-1;} 
+1162   3         c++;
+1163   3        }
+1164   2        if(n==1)
+1165   2        {
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 20  
+
+1166   3         a=0;
+1167   3         b=0;
+1168   3         c=0;
+1169   3        } 
+1170   2        if(!key1)
+1171   2        break;
+1172   2       }
+1173   1      }
+1174          //////////////////////////////////////
+1175          void delay25us(uint t)
+1176          {
+1177   1              uchar i;
+1178   1              for(;t>0;t--)
+1179   1              {
+1180   2                      for(i=19;i>0;i--);
+1181   2              }
+1182   1      }
+1183          
+1184          /*****************************
+1185          ÑÓÊ±º¯Êý,´óÔ¼ÑÓÊ±t*25ms
+1186          Ê¹ÓÃÌõ¼þ£ºÔÚ24MHZµÄ¾§ÕñÆµÂÊÏÂ
+1187          *****************************/
+1188          void delay25ms(uint t)
+1189          {
+1190   1              uint i;
+1191   1              for(;t>0;t--)
+1192   1              {
+1193   2                      for(i=6245;i>0;i--);
+1194   2              }
+1195   1      }
+1196           void delay50us1(uint t)
+1197          {
+1198   1              char i;
+1199   1              for(;t>0;t--)
+1200   1                      for(i=19;i>0;i--);
+1201   1      }
+1202          void qin()
+1203          {               
+1204   1               uchar keyl,keyh,key;
+1205   1              TMOD=0x01;
+1206   1              EA=1;
+1207   1              ET0=0;
+1208   1              TR0=1;
+1209   1              while(1)
+1210   1              {
+1211   2                      P1=0xf0;
+1212   2                      keyl=P1;
+1213   2                      keyl=keyl&0xf0;
+1214   2                      if(keyl!=0xf0)
+1215   2                      {
+1216   3                              delay25us(400);
+1217   3                              if(keyl!=0xf0)
+1218   3                              {
+1219   4                                      keyl=P1&0xf0;
+1220   4                                      keyl=keyl|0x0f;
+1221   4                                      P1=keyl;
+1222   4                                      keyh=P1;
+1223   4                                      keyh=keyh&0x0f;
+1224   4                                      keyl=keyl&0xf0;
+1225   4                                      key=keyh+keyl;
+1226   4                                      switch (key)
+1227   4                                      {
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 21  
+
+1228   5                                              case 0xee:      i=1;    break;
+1229   5                                              case 0xde:      i=2;    break;
+1230   5                                              case 0xbe:      i=3;    break;
+1231   5                                              case 0x7e:      i=4;    break;
+1232   5                                              case 0xed:      i=5;    break;
+1233   5                                              case 0xdd:      i=6;    break;
+1234   5                                              case 0xbd:      i=7;    break;
+1235   5                                              case 0x7d:      i=8;    break;
+1236   5                                              case 0xeb:      i=9;    break;
+1237   5                                              case 0xdb:      i=10;   break;
+1238   5                                              case 0xbb:      i=11;   break;
+1239   5                                              case 0x7b:      i=12;   break;
+1240   5                                              case 0xe7:      i=13;   break;
+1241   5                                              case 0xd7:      i=14;   break;
+1242   5                                              case 0xb7:      i=15;   break;
+1243   5                                              case 0x77:      i=16;   break;
+1244   5                                      }
+1245   4                                      if(i>12)
+1246   4                                      {
+1247   5                                              ET0=0;
+1248   5                                              break;
+1249   5                                      }
+1250   4                                      else
+1251   4                                      {
+1252   5                                              ET0=1;
+1253   5                                      }
+1254   4                              }
+1255   3                      }
+1256   2                      else
+1257   2                      {
+1258   3                              ET0=0;  
+1259   3                      }
+1260   2              
+1261   2      
+1262   2              }       
+1263   1      }
+1264          
+1265          void time0() interrupt 1
+1266          {
+1267   1              TH0=TH0system[i-1];
+1268   1              TL0=TL0system[i-1];
+1269   1              beep=~beep;
+1270   1      }
+1271          
+1272          
+1273          //ÒÔÏÂÎªÖ÷º¯Êý
+1274          void main(void)
+1275          {
+1276   1         unsigned int option=0,ix;
+1277   1         Buzz=0;
+1278   1         begin();  
+1279   1         delay(1000); 
+1280   1              ScreenClear12864();
+1281   1              delay(1000);
+1282   1              StringDisplay(2,0,"Ê±¼äÉèÖÃ");
+1283   1              StringDisplay(0,1,"ÓÒ¼ü£ºÏÂÒ»Î»");
+1284   1              StringDisplay(0,2,"ÉÏ¼ü£º¸ÄÊ±¼ä");
+1285   1              StringDisplay(0,3,"ÏÂ¼ü£ºÈ·¶¨");
+1286   1              delay(1000);
+1287   1              settime();
+1288   1              SetTimeCalendar();
+1289   1                      ScreenClear12864();
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 22  
+
+1290   1              delay(1000);
+1291   1              StringDisplay(1,0,"±¨¾¯ÎÂ¶ÈÉèÖÃ");
+1292   1              StringDisplay(0,1,"ÓÒ¼ü£ºÏÂÒ»Î»");
+1293   1              StringDisplay(0,2,"ÉÏ¼ü£º¸ÄÎÂ¶È");
+1294   1              StringDisplay(0,3,"ÏÂ¼ü£ºÈ·¶¨");
+1295   1              delay(1000);
+1296   1              setwendu();
+1297   1              ScreenClear12864();
+1298   1              delay(1000);
+1299   1      
+1300   1      zdr:   while(1)
+1301   1         {
+1302   2          choosefunction(option);      //        ¹¦ÄÜÑ¡Ôñ½çÃæµÄÏÔÊ¾Æ÷º¯Êý¡¾2¡¿
+1303   2            if(key3==0)                        //up key
+1304   2                {
+1305   3                      delay(20);
+1306   3                      if(key3==0)
+1307   3                      {
+1308   4                         option++;
+1309   4                         if(option==6) option=1;        // 1=ÎÂ¶È 2=Ê±¼ä 3=¼ÆËãÆ÷
+1310   4                         choosefunction(option);
+1311   4                      }
+1312   3             }
+1313   2                      while(1)
+1314   2                      { if(key3==1) break; }
+1315   2      
+1316   2                 if(key2==0)
+1317   2                {
+1318   3                      delay(20);
+1319   3                      if(key2==0)
+1320   3                      {
+1321   4                         option--;
+1322   4                         if(option==0) option=5;        // 1=ÎÂ¶È 2=Ê±¼ä 3=¼ÆËãÆ÷
+1323   4                         switch (option)
+1324   4                         {
+1325   5                                choosefunction(option);
+1326   5                         }
+1327   4                      }
+1328   3             }
+1329   2                      while(1)
+1330   2                      { if(key2==1) break; }
+1331   2      
+1332   2                 if(key4==0)                   //right key
+1333   2                {
+1334   3                      delay(20);
+1335   3                      if(key4==0)
+1336   3                      {
+1337   4                              ix=0;
+1338   4                              while(1)
+1339   4                              {
+1340   5                            switch (option)
+1341   5                   {
+1342   6                         case 1: wendu(); //ÎÂ¶ÈÏÔÊ¾º¯Êý£¨ÏÔÊ¾Æ÷º¯Êý¡¾3¡¿+¾§Ìå¹Üº¯Êý¡¾4¡¿£©
+1343   6                           break;
+1344   6                         case 2: if(ix==0)
+1345   6                                         {
+1346   7                                                    ScreenClear12864();
+1347   7                                                        delay(1000);
+1348   7                                                        ix=1;
+1349   7                                                 }
+1350   6                                         shijian(); //Ê±¼äº¯Êý£¨ÏÔÊ¾Æ÷º¯Êý¡¾5¡¿+¾§Ìå¹Üº¯Êý¡¾6¡¿£©
+1351   6                                 break;  
+C51 COMPILER V8.18   1                                                                     07/20/2017 09:38:06 PAGE 23  
+
+1352   6                         case 3: jisuanqi(); //¼ÆËãÆ÷º¯Êý£¨¼ÆËãÆ÷º¯Êý¡¾7¡¿+ÏÔÊ¾Æ÷º¯Êý¡¾8¡¿¶þÕßÓ¦¸Ã½ôÃÜÁªÏµÊµ¼ÊÊÇÒ»¸öº¯Ê
+             -ý  £©
+1353   6                           goto zdr;             //×¢£º´Ë¼ÆËãÆ÷º¯ÊýÖ»ÐèÒªÖ´ÐÐÒ»´ÎÔËËã
+1354   6      
+1355   6                                 case 4:
+1356   6                                        paobiao();    //ÅÜ±í
+1357   6                                               break; 
+1358   6                                 case 5:
+1359   6                                        qin();  //µç×ÓÇÙ
+1360   6                                               goto zdr;       
+1361   6                   }
+1362   5                                if(key1==0)       //left key
+1363   5                          {
+1364   6                               delay(20);
+1365   6                               if(key1==0)
+1366   6                                 {
+1367   7                                           break;
+1368   7                                         }
+1369   6                                      }
+1370   5                              }
+1371   4                          while(1)
+1372   4                          { if(key1==1) break; }
+1373   4      
+1374   4                      }
+1375   3                }
+1376   2                while(1)
+1377   2                      { if(key4==1) break; }
+1378   2          }   
+1379   1      }
+1380          
+1381          
+1382          
+1383          
+1384          
+1385          
+1386          
+1387          
+1388          
+1389          
+1390          
+1391          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   4907    ----
+   CONSTANT SIZE    =   1507    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     77      49
+   IDATA SIZE       =     14    ----
+   BIT SIZE         =      2       4
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

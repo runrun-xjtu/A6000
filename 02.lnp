@@ -1,0 +1,6 @@
+"STARTUP.obj",
+"digitron_drv.obj",
+"DS1302_drv.obj",
+"1.obj" 
+TO "02" 
+RAMSIZE(256) 
